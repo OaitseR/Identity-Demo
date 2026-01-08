@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using AzureIdentityDemo.Auth;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Graph.Models.ExternalConnectors;
 
 var config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: false)
@@ -14,13 +16,31 @@ string clientId = config["AzureAd:ClientId"]
 Console.WriteLine("Choose authentication method:");
 Console.WriteLine("1 - Interactive Login");
 Console.WriteLine("2 - Device Code Login");
+Console.WriteLine("3 - Daemon (Client Credentials) Login");
 
 var choice = Console.ReadLine();
-string token = choice switch
+
+string token;
+
+switch (choice)
 {
-    "1" => await InteractiveAuth.RunAsync(tenantId, clientId),
-    "2" => await DeviceCodeAuth.RunAsync(tenantId, clientId),
-    _ => throw new Exception("Invalid choice")
+    case "1":
+        token = await InteractiveAuth.RunAsync(tenantId, clientId);
+        await GraphHelper.GetUserProfileAsync(token);
+        break;
+
+    case "2":
+        token = await DeviceCodeAuth.RunAsync(tenantId, clientId);
+        await GraphHelper.GetUserProfileAsync(token);
+        break;
+
+case "3":
+        var daemonService = new DaemonAuth(config);
+        token = await daemonService.AuthenticateAsync();
+        Console.WriteLine("Daemon flow completed successfully.");
+        break;
+default:
+    throw new Exception("Invalid choice");
 };
 
 await GraphHelper.GetUserProfileAsync(token);
